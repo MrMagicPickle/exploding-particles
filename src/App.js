@@ -1,38 +1,51 @@
-import { useRef, useState } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
+import ShaderParticleMaterial from './particles/ShaderMaterial';
 
-function Box(props) {
-  // This reference gives us direct access to the THREE.Mesh object
-  const ref = useRef()
-  // Hold state for hovered and clicked events
-  const [hovered, hover] = useState(false)
-  const [clicked, click] = useState(false)
-  // Subscribe this component to the render-loop, rotate the mesh every frame
-  useFrame((state, delta) => (ref.current.rotation.x += delta))
-  // Return the view, these are regular Threejs elements expressed in JSX
-  return (
-    <mesh
-      {...props}
-      ref={ref}
-      scale={clicked ? 1.5 : 1}
-      onClick={(event) => click(!clicked)}
-      onPointerOver={(event) => hover(true)}
-      onPointerOut={(event) => hover(false)}>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={hovered ? 'hotpink' : 'orange'} />
-    </mesh>
-  )
+function ExplodingParticlePoints() {
+  const planeMesh = useRef(null);
+  let runClock = true;
+  useFrame((state) => {
+    const { clock } = state;
+    if (clock.running) {
+      planeMesh.current.material.uniforms.uTime.value = clock.getElapsedTime();
+      if (clock.getElapsedTime() > 2 * Math.PI) {
+        planeMesh.current.material.uniforms.uTime.value = 0;
+        runClock = false;
+        clock.stop();
+        setTimeout(() => {
+          runClock = true;
+        }, 2000);
+      }
+    }
+    else {
+      if (runClock) {
+        clock.start();
+      }
+    }
+  });
+
+  return <>
+    <points ref={planeMesh} position={ [0,0,0] } rotation-y={ Math.PI * 0.5 }>
+      <planeGeometry args={[670, 440, 670, 440]}/>
+      <ShaderParticleMaterial/>
+    </points>
+  </>
 }
 
 export default function App() {
   return (
-    <Canvas>
+    <Canvas
+      camera={{
+          fov: 45,
+          near: 100,
+          far: 1500,
+          position: [ 800, 0, 0 ]
+      }}
+    >
       <ambientLight intensity={0.5} />
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
-      <pointLight position={[-10, -10, -10]} />
-      <Box position={[-1.2, 0, 0]} />
-      <Box position={[1.2, 0, 0]} />
+      <ExplodingParticlePoints/>
       <OrbitControls />
     </Canvas>
   )
